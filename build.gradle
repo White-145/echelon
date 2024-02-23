@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group 'me.white'
+version '0.0.1'
+
+application {
+    mainClass = 'me.white.echelon.Main'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    
+}
