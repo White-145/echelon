@@ -7,10 +7,11 @@ import me.white.echelon.program.value.Value;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public class Program {
-    private HashMap<String, Func> functions;
+    private Map<String, Func> functions;
 
     public Program(String code) {
         Lexer lexer = new Lexer(code);
@@ -21,6 +22,10 @@ public class Program {
         if (!functions.containsKey(name)) {
             functions.put(name, new BuiltinFunction(argumentCount, function));
         }
+    }
+
+    public Map<String, Func> getFunctions() {
+        return functions;
     }
 
     public void execute() {

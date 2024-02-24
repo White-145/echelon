@@ -3,8 +3,8 @@ package me.white.echelon.program;
 import me.white.echelon.program.value.ContainerValue;
 import me.white.echelon.program.value.Value;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public class BuiltinFunction extends Func {
@@ -17,7 +17,7 @@ public class BuiltinFunction extends Func {
     }
 
     @Override
-    public Value<?> execute(List<ContainerValue> arguments, HashMap<String, Func> functions) {
+    public Value<?> execute(List<ContainerValue> arguments, Map<String, Func> functions) {
         return function.apply(arguments);
     }
 

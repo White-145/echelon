@@ -4,8 +4,8 @@ import me.white.echelon.program.value.ContainerValue;
 import me.white.echelon.program.value.Value;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Instruction {
     private List<Value<?>> values;
@@ -18,7 +18,7 @@ public class Instruction {
         this.procedures = procedures;
     }
 
-    public Value<?> execute(HashMap<String, ContainerValue> storage, HashMap<String, Func> functions) {
+    public Value<?> execute(Map<String, ContainerValue> storage, Map<String, Func> functions) {
         List<Func> awaitingFunctions = new ArrayList<>();
         List<List<ContainerValue>> awaitingArguments = new ArrayList<>();
         List<ContainerValue> currentAwaitingArguments = new ArrayList<>();

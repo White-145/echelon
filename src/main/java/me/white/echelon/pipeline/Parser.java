@@ -82,14 +82,16 @@ public class Parser {
             Token token = lexer.next();
             if (token.isOf(Token.FUNCTION_RETURN)) {
                 Token token1 = lexer.next();
-                if (token1.isOf(Token.IDENTIFIER)) {
-                    Token token2 = lexer.next();
-                    if (token2.isOf(Token.ACCESS)) {
-                        returnValue = new InstructionValue(parseInstruction(token1, true));
-                    } else if (token2.isOf(Token.LINE_END) || token2.isOf(Token.FILE_END)) {
-                        returnValue = new ContainerValue(token1.getValue());
-                    } else {
-                        illegalToken(token2, Token.ACCESS, Token.LINE_END, Token.FILE_END);
+                if (token1.isOf(Token.FUNCTION_DECLARATION, Token.NUMBER, Token.STRING, Token.IDENTIFIER)) {
+                    Value<?> value = parseValue(token1);
+                    returnValue = value;
+                    if (value instanceof ContainerValue) {
+                        Token token2 = lexer.next();
+                        if (token2.isOf(Token.ACCESS)) {
+                            returnValue = new InstructionValue(parseInstruction(token1, true));
+                        } else if (!token2.isOf(Token.LINE_END) && !token2.isOf(Token.FILE_END)) {
+                            illegalToken(token2, Token.ACCESS, Token.LINE_END, Token.FILE_END);
+                        }
                     }
                 } else if (!token1.isOf(Token.LINE_END) && !token1.isOf(Token.FILE_END)) {
                     illegalToken(token1, Token.IDENTIFIER, Token.LINE_END, Token.FILE_END);

@@ -2,9 +2,12 @@ package me.white.echelon;
 
 import me.white.echelon.program.Program;
 import me.white.echelon.program.value.ContainerValue;
+import me.white.echelon.program.value.FunctionValue;
 import me.white.echelon.program.value.NumberValue;
 import me.white.echelon.program.value.Value;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
@@ -38,12 +41,19 @@ public class Main {
                     }
                     return new NumberValue(((NumberValue)value1).getValue() + ((NumberValue)value2).getValue());
                 });
+                program.addBuiltinFunction("&", 1, (arguments) -> {
+                    Value<?> value1 = arguments.get(0).getHeldValue();
+                    if (value1 instanceof FunctionValue functionValue) {
+                        functionValue.getValue().execute(List.of(), program.getFunctions());
+                    }
+                    return new NumberValue(0);
+                });
                 program.execute();
             } catch (IllegalStateException e) {
                 System.out.println(e.getMessage());
             }
         }
+        // TODO double calls `a::` (totally rewrite everything)
         // TODO argument functions consuming line_end
-        // TODO returning literal values
     }
 }

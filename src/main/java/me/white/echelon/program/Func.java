@@ -6,13 +6,14 @@ import me.white.echelon.program.value.Value;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Func {
     private List<String> arguments;
-    int argumentCount;
     private List<Instruction> instructions;
-    private int instructionsCount;
     private Value<?> returnValue;
+    private int instructionsCount;
+    int argumentCount;
 
     public Func(List<String> arguments, List<Instruction> instructions, Value<?> returnValue) {
         this.arguments = arguments;
@@ -22,8 +23,8 @@ public class Func {
         instructionsCount = instructions == null ? 0 : instructions.size();
     }
 
-    public Value<?> execute(List<ContainerValue> arguments, HashMap<String, Func> functions) {
-        HashMap<String, ContainerValue> storage = new HashMap<>();
+    public Value<?> execute(List<ContainerValue> arguments, Map<String, Func> functions) {
+        Map<String, ContainerValue> storage = new HashMap<>();
         for (int i = 0; i < argumentCount; ++i) {
             storage.put(this.arguments.get(i), arguments.get(i));
         }

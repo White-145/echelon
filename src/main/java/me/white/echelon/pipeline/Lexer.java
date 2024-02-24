@@ -65,7 +65,7 @@ public class Lexer {
         return readLength(length);
     }
 
-    private String readLength() {
+    private String readString() {
         int start = position;
         StringBuilder builder = new StringBuilder();
         boolean hasEnded = false;
@@ -74,6 +74,16 @@ public class Lexer {
             if (ch == '"') {
                 hasEnded = true;
                 break;
+            }
+            if (ch == '\\') {
+                char ch1 = peek();
+                if (ch1 == '"') {
+                    builder.append('"');
+                    continue;
+                } else if (ch1 == 'n') {
+                    builder.append('\n');
+                    continue;
+                }
             }
             builder.append(ch);
         }
@@ -122,7 +132,7 @@ public class Lexer {
             case '~' -> new Token(Token.FUNCTION_RETURN, null, start);
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' ->
                     new Token(Token.NUMBER, readNumber(), start);
-            case '"' -> new Token(Token.STRING, readLength(), start);
+            case '"' -> new Token(Token.STRING, readString(), start);
             case '\\', '\n' -> new Token(Token.LINE_END, null, start);
             default -> new Token(Token.IDENTIFIER, readIdentifier(), start);
         };
