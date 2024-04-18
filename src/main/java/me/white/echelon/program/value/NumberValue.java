@@ -14,6 +14,6 @@ public class NumberValue implements Value<Integer> {
 
     @Override
     public String toString() {
-        return String.valueOf(value);
+        return "{Number " + value + "}";
     }
 }

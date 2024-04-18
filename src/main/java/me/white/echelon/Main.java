@@ -1,13 +1,9 @@
 package me.white.echelon;
 
 import me.white.echelon.program.Program;
-import me.white.echelon.program.value.ContainerValue;
-import me.white.echelon.program.value.FunctionValue;
-import me.white.echelon.program.value.NumberValue;
-import me.white.echelon.program.value.Value;
+import me.white.echelon.program.value.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
@@ -23,28 +19,29 @@ public class Main {
             try {
                 Program program = new Program(code);
                 program.addBuiltinFunction("<", 1, (arguments) -> {
-                    ContainerValue value = arguments.get(0);
-                    System.out.println(value.getHeldValue());
+                    Value<?> value = arguments.get(0).getStoredValue();
+                    System.out.println(value.getValue());
                     return new NumberValue(0);
                 });
+                program.addBuiltinFunction("*", 0, (arguments) -> new StringValue("Hello, World!"));
                 program.addBuiltinFunction("=", 2, (arguments) -> {
-                    ContainerValue container = arguments.get(0);
-                    Value<?> value = arguments.get(1).getHeldValue();
-                    container.setHeldValue(value);
-                    return new NumberValue(0);
+                    Container container = arguments.get(0);
+                    Value<?> value = arguments.get(1).getStoredValue();
+                    container.setStoredValue(value);
+                    return value;
                 });
                 program.addBuiltinFunction("+", 2, (arguments) -> {
-                    Value<?> value1 = arguments.get(0).getHeldValue();
-                    Value<?> value2 = arguments.get(1).getHeldValue();
+                    Value<?> value1 = arguments.get(0).getStoredValue();
+                    Value<?> value2 = arguments.get(1).getStoredValue();
                     if (!(value1 instanceof NumberValue) || !(value2 instanceof NumberValue)) {
                         return new NumberValue(0);
                     }
                     return new NumberValue(((NumberValue)value1).getValue() + ((NumberValue)value2).getValue());
                 });
                 program.addBuiltinFunction("&", 1, (arguments) -> {
-                    Value<?> value1 = arguments.get(0).getHeldValue();
-                    if (value1 instanceof FunctionValue functionValue) {
-                        functionValue.getValue().execute(List.of(), program.getFunctions());
+                    Value<?> value = arguments.get(0).getStoredValue();
+                    if (value instanceof FunctionValue functionValue) {
+                        return functionValue.getValue().execute(List.of(), program.getFunctions());
                     }
                     return new NumberValue(0);
                 });
@@ -53,7 +50,5 @@ public class Main {
                 System.out.println(e.getMessage());
             }
         }
-        // TODO double calls `a::` (totally rewrite everything)
-        // TODO argument functions consuming line_end
     }
 }

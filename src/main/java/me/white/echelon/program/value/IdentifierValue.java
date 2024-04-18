@@ -1,9 +1,9 @@
 package me.white.echelon.program.value;
 
-public class StringValue implements Value<String> {
+public class IdentifierValue implements Value<String> {
     private String value;
 
-    public StringValue(String value) {
+    public IdentifierValue(String value) {
         this.value = value;
     }
 
@@ -14,6 +14,6 @@ public class StringValue implements Value<String> {
 
     @Override
     public String toString() {
-        return "{String \""+ value + "\"}";
+        return "{Reference `"+ value + "`}";
     }
 }

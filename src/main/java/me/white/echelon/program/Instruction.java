@@ -1,128 +1,127 @@
 package me.white.echelon.program;
 
-import me.white.echelon.program.value.ContainerValue;
+import me.white.echelon.program.value.FunctionValue;
+import me.white.echelon.program.value.IdentifierValue;
+import me.white.echelon.program.value.Container;
 import me.white.echelon.program.value.Value;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 public class Instruction {
-    private List<Value<?>> values;
-    private List<Boolean> accesses;
-    private List<Boolean> procedures;
+    public enum Action {
+        INPUT(true),
+        ACCESS(true),
+        PROCEDURE(false),
+        STACK_ACCESS(false);
 
-    public Instruction(List<Value<?>> values, List<Boolean> accesses, List<Boolean> procedures) {
+        final boolean hasValue;
+
+        Action(boolean hasValue) {
+            this.hasValue = hasValue;
+        }
+    }
+    public static final Action INPUT = Action.INPUT;
+    public static final Action ACCESS = Action.ACCESS;
+    public static final Action PROCEDURE = Action.PROCEDURE;
+    public static final Action STACK_ACCESS = Action.STACK_ACCESS;
+
+    private List<Action> actions;
+    private List<Value<?>> values;
+
+    public Instruction(List<Value<?>> values, List<Action> actions) {
         this.values = values;
-        this.accesses = accesses;
-        this.procedures = procedures;
+        this.actions = actions;
+        int neededValues = 0;
+        for (Action action : actions) {
+            if (action.hasValue) {
+                neededValues += 1;
+            }
+        }
+        assert values.size() == neededValues;
     }
 
-    public Value<?> execute(Map<String, ContainerValue> storage, Map<String, Func> functions) {
-        List<Func> awaitingFunctions = new ArrayList<>();
-        List<List<ContainerValue>> awaitingArguments = new ArrayList<>();
-        List<ContainerValue> currentAwaitingArguments = new ArrayList<>();
-        awaitingArguments.add(currentAwaitingArguments);
-        int argumentCount = 0;
-        Value<?> returnValue = null;
-        int i = 0;
-        while (i < values.size()) {
-            Value<?> value = values.get(i);
-            if (accesses.get(i)) {
-                assert value instanceof ContainerValue;
-                String name = ((ContainerValue)value).getValue();
-                if (!functions.containsKey(name)) {
-                    throw new IllegalStateException("Attempt to call non-existant function: '" + name + "'.");
-                }
-                Func function = functions.get(name);
-                if (function.getArgumentCount() == 0) {
-                    if (!procedures.get(i)) {
-                        throw new IllegalStateException("Attempt to pass arguments to a procedure.");
+    public Value<?> execute(Map<String, Value<?>> storage, Map<String, Func> functions) {
+        int readValues = 0;
+        Stack<Func> accessStack = new Stack<>();
+        Stack<List<Value<?>>> argumentStack = new Stack<>();
+        argumentStack.add(new ArrayList<>());
+        for (Action action : actions) {
+            if (action == Action.INPUT || action == Action.PROCEDURE) {
+                if (action == Action.INPUT) {
+                    Value<?> value = values.get(readValues);
+                    readValues += 1;
+                    argumentStack.peek().add(value);
+                } else {
+                    if (accessStack.peek().getArgumentCount() != 0) {
+                        throw new IllegalStateException("Attempt to call non-procedure function as procedure.");
                     }
-                    Value<?> functionValue = function.execute(List.of(), functions);
-                    if (functionValue instanceof ContainerValue containerValue) {
-                        currentAwaitingArguments.add(containerValue);
+                    assert argumentStack.peek().isEmpty();
+                }
+                while (!accessStack.isEmpty() && accessStack.peek().getArgumentCount() == argumentStack.peek().size()) {
+                    Func function = accessStack.pop();
+                    List<Container> arguments = new ArrayList<>();
+                    for (Value<?> value : argumentStack.pop()) {
+                        if (value instanceof IdentifierValue identifierValue) {
+                            String identifier = identifierValue.getValue();
+                            arguments.add(new Container(identifier, storage.get(identifier)));
+                        } else {
+                            arguments.add(new Container(null, value));
+                        }
+                    }
+                    Value<?> result = function.execute(arguments, functions);
+                    for (Container argument : arguments) {
+                        String name = argument.getName();
+                        if (name != null) {
+                            storage.put(name, argument.getStoredValue());
+                        }
+                    }
+                    argumentStack.peek().add(result);
+                }
+            } else if (action == Action.ACCESS) {
+                Value<?> value = values.get(readValues);
+                readValues += 1;
+                Func func;
+                if (value instanceof FunctionValue functionValue) {
+                    func = functionValue.getValue();
+                } else if (value instanceof IdentifierValue identifierValue) {
+                    String identifier = identifierValue.getValue();
+                    if (storage.containsKey(identifier)) {
+                        Value<?> storedValue = storage.get(identifier);
+                        if (storedValue instanceof FunctionValue functionValue) {
+                            func = functionValue.getValue();
+                        } else {
+                            throw new IllegalStateException("Attempt to call non-function value '" + identifier + "'.");
+                        }
+                    } else if (functions.containsKey(identifier)) {
+                        func = functions.get(identifier);
                     } else {
-                        ContainerValue argumentValue = new ContainerValue("");
-                        argumentValue.setHeldValue(functionValue);
-                        currentAwaitingArguments.add(argumentValue);
+                        throw new IllegalStateException("Attempt to call non-existant value '" + identifier + "'.");
                     }
                 } else {
-                    argumentCount = function.getArgumentCount();
-                    awaitingFunctions.add(function);
-                    currentAwaitingArguments = new ArrayList<>();
-                    awaitingArguments.add(currentAwaitingArguments);
+                    throw new IllegalStateException("Attempt to call non-function value.");
                 }
-            } else {
-                assert !awaitingFunctions.isEmpty();
-                if (value instanceof ContainerValue containerValue) {
-                    if (storage.containsKey(containerValue.getValue())) {
-                        currentAwaitingArguments.add(storage.get(containerValue.getValue()));
-                    } else {
-                        currentAwaitingArguments.add(new ContainerValue(containerValue.getValue()));
-                    }
-                } else {
-                    ContainerValue argumentValue = new ContainerValue("");
-                    argumentValue.setHeldValue(value);
-                    currentAwaitingArguments.add(argumentValue);
+                argumentStack.add(new ArrayList<>());
+                accessStack.add(func);
+            } else if (action == Action.STACK_ACCESS) {
+                Value<?> value = argumentStack.peek().get(argumentStack.peek().size() - 1);
+                if (!(value instanceof FunctionValue)) {
+                    throw new IllegalStateException("Attempt to call non-function value.");
                 }
-            }
-            if (argumentCount == currentAwaitingArguments.size()) {
-                assert !awaitingFunctions.isEmpty();
-                Func function = awaitingFunctions.get(awaitingFunctions.size() - 1);
-                assert function.getArgumentCount() == argumentCount;
-                Value<?> functionValue = function.execute(currentAwaitingArguments, functions);
-                awaitingFunctions.remove(awaitingFunctions.size() - 1);
-                for (ContainerValue argument : currentAwaitingArguments) {
-                    if (!argument.getValue().equals("")) {
-                        storage.put(argument.getValue(), argument);
-                    }
-                }
-                awaitingArguments.remove(awaitingArguments.size() - 1);
-                currentAwaitingArguments = awaitingArguments.get(awaitingArguments.size() - 1);
-                if (awaitingFunctions.isEmpty()) {
-                    returnValue = functionValue;
-                    if (i != values.size() - 1) {
-                        throw new IllegalStateException("Excessive arguments in instruction.");
-                    }
-                } else {
-                    argumentCount = awaitingFunctions.get(awaitingFunctions.size() - 1).getArgumentCount();
-                    if (functionValue instanceof ContainerValue containerValue) {
-                        awaitingArguments.add(currentAwaitingArguments);
-                    } else {
-                        ContainerValue argumentValue = new ContainerValue("");
-                        argumentValue.setHeldValue(functionValue);
-                        currentAwaitingArguments.add(argumentValue);
-                    }
-                }
-            }
-            i += 1;
-        }
-        while (!awaitingFunctions.isEmpty()) {
-            if (currentAwaitingArguments.size() < argumentCount) {
-                throw new IllegalStateException("Deficient arguments in instruction.");
-            }
-            Func function = awaitingFunctions.get(awaitingFunctions.size() - 1);
-            assert function.getArgumentCount() == argumentCount;
-            Value<?> functionValue = function.execute(currentAwaitingArguments, functions);
-            awaitingFunctions.remove(awaitingFunctions.size() - 1);
-            for (ContainerValue argument : currentAwaitingArguments) {
-                if (!argument.getValue().equals("")) {
-                    storage.put(argument.getValue(), argument);
-                }
-            }
-            awaitingArguments.remove(awaitingArguments.size() - 1);
-            currentAwaitingArguments = awaitingArguments.get(awaitingArguments.size() - 1);
-            if (awaitingFunctions.isEmpty()) {
-                returnValue = functionValue;
-            } else {
-                argumentCount = awaitingFunctions.get(awaitingFunctions.size() - 1).getArgumentCount();
-                ContainerValue argumentValue = new ContainerValue("");
-                argumentValue.setHeldValue(functionValue);
-                currentAwaitingArguments.add(argumentValue);
+                Func func = ((FunctionValue)value).getValue();
+                argumentStack.add(new ArrayList<>());
+                accessStack.add(func);
             }
         }
-        assert returnValue != null;
-        return returnValue;
+        if (!accessStack.isEmpty()) {
+            throw new IllegalStateException("Insufficient argument count in instruction.");
+        }
+        List<Value<?>> argument = argumentStack.pop();
+        if (argument.size() != 1) {
+            throw new IllegalStateException("Excess argument count in instruction.");
+        }
+        return argument.get(0);
     }
 }
