@@ -1,9 +1,6 @@
 package me.white.echelon.program;
 
-import me.white.echelon.program.value.FunctionValue;
-import me.white.echelon.program.value.IdentifierValue;
-import me.white.echelon.program.value.Container;
-import me.white.echelon.program.value.Value;
+import me.white.echelon.program.value.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +63,13 @@ public class Instruction {
                     for (Value<?> value : argumentStack.pop()) {
                         if (value instanceof IdentifierValue identifierValue) {
                             String identifier = identifierValue.getValue();
-                            arguments.add(new Container(identifier, storage.get(identifier)));
+                            if (storage.containsKey(identifier)) {
+                                arguments.add(new Container(identifier, storage.get(identifier)));
+                            } else if (functions.containsKey(identifier)) {
+                                arguments.add(new Container(null, new FunctionValue(functions.get(identifier))));
+                            } else {
+                                arguments.add(new Container(identifier, new NumberValue(0)));
+                            }
                         } else {
                             arguments.add(new Container(null, value));
                         }
