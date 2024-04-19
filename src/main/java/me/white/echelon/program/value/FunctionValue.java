@@ -16,6 +16,6 @@ public class FunctionValue implements Value<Func> {
 
     @Override
     public String toString() {
-        return "{Function + '" + value + "'}";
+        return "{Function '" + value + "'}";
     }
 }

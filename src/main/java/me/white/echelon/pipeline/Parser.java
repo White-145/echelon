@@ -30,7 +30,7 @@ public class Parser {
         throw new IllegalStateException("Illegal token at position " + token.getPosition() + ": '" + token + "', expected: " + expectedString);
     }
 
-    private static void illegalToken(Token token, boolean allowEOF, Token.Type ...expected) {
+    private static void illegalTokenEOL(Token token, boolean allowEOF, Token.Type ...expected) {
         Token.Type[] types;
         if (allowEOF) {
             types = new Token.Type[expected.length + 2];
@@ -61,63 +61,64 @@ public class Parser {
             if (token.isOf(Token.FUNCTION_DECLARATION)) {
                 Token token1 = lexer.next();
                 if (token1.isOf(Token.LINE_END)) {
-                    functions.put("", parseFunction(null));
+                    functions.put("", parseFunction(null, true));
                 } else if (token1.isOf(Token.ACCESS)) {
                     List<String> arguments = parseFunctionArguments();
-                    functions.put("", parseFunction(arguments));
+                    functions.put("", parseFunction(arguments, true));
                 } else if (token1.isOf(Token.IDENTIFIER)) {
                     String name = token1.getValue();
                     Token token2 = lexer.next();
                     if (token2.isOf(Token.LINE_END)) {
-                        functions.put(name, parseFunction(null));
+                        functions.put(name, parseFunction(null, true));
                     } else if (token2.isOf(Token.ACCESS)) {
                         List<String> arguments = parseFunctionArguments();
-                        functions.put(name, parseFunction(arguments));
+                        functions.put(name, parseFunction(arguments, true));
                     } else {
                         illegalToken(token2, Token.LINE_END, Token.ACCESS);
                     }
                 } else {
-                    illegalToken(token1, Token.LINE_END, Token.ACCESS, Token.IDENTIFIER);
+                    illegalToken(token1, Token.LINE_END, Token.IDENTIFIER, Token.ACCESS);
                 }
             } else if (!token.isOf(Token.LINE_END)) {
-                illegalToken(token, Token.FUNCTION_DECLARATION, Token.LINE_END);
+                illegalToken(token, Token.LINE_END, Token.FUNCTION_DECLARATION);
             }
         }
         return functions;
     }
 
-    private Func parseFunction(List<String> arguments) {
+    private Func parseFunction(List<String> arguments, boolean allowEOF) {
         List<Instruction> instructions = new ArrayList<>();
         Value<?> returnValue = null;
         while (true) {
             Token token = lexer.next();
             if (token.isOf(Token.FUNCTION_RETURN)) {
-                Token token1 = lexer.next();
+                Token token1 = lexer.see();
                 if (token1.isOf(Token.FUNCTION_DECLARATION, Token.NUMBER, Token.STRING, Token.IDENTIFIER)) {
+                    lexer.next();
                     Value<?> value = parseValue(token1);
                     returnValue = value;
                     if (value instanceof IdentifierValue) {
-                        Token token2 = lexer.next();
+                        Token token2 = lexer.see();
                         if (token2.isOf(Token.ACCESS)) {
+                            lexer.next();
                             returnValue = new InstructionValue(parseInstruction(token1, true));
-                        } else if (!token2.isOf(Token.LINE_END) && !token2.isOf(Token.FILE_END)) {
+                        } else if (!token2.isOf(Token.LINE_END, Token.FILE_END, Token.ACCESS)) {
                             illegalToken(token2, Token.ACCESS, Token.LINE_END, Token.FILE_END);
                         }
                     }
-                } else if (!token1.isOf(Token.LINE_END) && !token1.isOf(Token.FILE_END)) {
-                    illegalToken(token1, Token.IDENTIFIER, Token.LINE_END, Token.FILE_END);
+                } else if (!isEOL(token1, allowEOF)) {
+                    illegalTokenEOL(token1, allowEOF, Token.IDENTIFIER, Token.NUMBER, Token.STRING, Token.FUNCTION_DECLARATION);
                 }
                 break;
             } else if (token.isOf(Token.IDENTIFIER)) {
                 Token token1 = lexer.next();
-                if (token1.isOf(Token.ACCESS)) {
-                    Instruction instruction = parseInstruction(token, false);
-                    instructions.add(instruction);
-                } else {
+                if (!token1.isOf(Token.ACCESS)) {
                     illegalToken(token1, Token.ACCESS);
                 }
-            } else if (!token.isOf(Token.LINE_END)) {
-                illegalToken(token, Token.FUNCTION_RETURN, Token.IDENTIFIER);
+                Instruction instruction = parseInstruction(token, false);
+                instructions.add(instruction);
+            } else {
+                illegalToken(token, Token.LINE_END, Token.IDENTIFIER, Token.FUNCTION_RETURN);
             }
         }
 
@@ -130,54 +131,61 @@ public class Parser {
         values.add(parseValue(token));
         actions.add(Instruction.ACCESS);
         Token token1 = lexer.see();
+        if (token1.isOf(Token.ARGUMENT_SEPARATION)) {
+            illegalTokenEOL(token1, allowEOF, Token.IDENTIFIER, Token.NUMBER, Token.STRING, Token.FUNCTION_DECLARATION);
+        }
         if (isEOL(token1, allowEOF)) {
             lexer.next();
             actions.add(Instruction.PROCEDURE);
-        } else if (token1.isOf(Token.ARGUMENT_SEPARATION)) {
-            illegalToken(token1, allowEOF, Token.NUMBER, Token.STRING, Token.IDENTIFIER, Token.FUNCTION_DECLARATION);
-        } else {
-            while (true) {
-                Token token2 = lexer.next();
-                if (token2.isOf(Token.ACCESS)) {
+        } else while (true) {
+            Token token2 = lexer.next();
+            if (token2.isOf(Token.ACCESS)) {
+                actions.add(Instruction.PROCEDURE);
+                actions.add(Instruction.STACK_ACCESS);
+                Token token3 = lexer.see();
+                if (isEOL(token3, allowEOF)) {
+                    lexer.next();
                     actions.add(Instruction.PROCEDURE);
-                    actions.add(Instruction.STACK_ACCESS);
-                    Token token3 = lexer.see();
-                    if (isEOL(token3, allowEOF)) {
+                    break;
+                }
+            } else {
+                Value<?> value = parseValue(token2);
+                Token token3 = lexer.next();
+                if (value instanceof FunctionValue) {
+                    Token token4 = lexer.see();
+                    if (token4.isOf(Token.ARGUMENT_SEPARATION, Token.ACCESS)) {
+                        token3 = lexer.next();
+                    }
+                }
+                if (isEOL(token3, allowEOF)) {
+                    actions.add(Instruction.INPUT);
+                    values.add(value);
+                    break;
+                }
+                if (token3.isOf(Token.ACCESS) && (value instanceof IdentifierValue || value instanceof FunctionValue)) {
+                    actions.add(Instruction.ACCESS);
+                    values.add(value);
+                    Token token4 = lexer.see();
+                    if (isEOL(token4, allowEOF)) {
                         lexer.next();
                         actions.add(Instruction.PROCEDURE);
                         break;
                     }
-                } else {
-                    Value<?> value = parseValue(token2);
-                    Token token3 = lexer.next();
-                    if (isEOL(token3, allowEOF)) {
-                        actions.add(Instruction.INPUT);
-                        values.add(value);
-                        break;
-                    } else if (token3.isOf(Token.ACCESS) && (value instanceof IdentifierValue || value instanceof FunctionValue)) {
-                        actions.add(Instruction.ACCESS);
-                        values.add(value);
-                        Token token4 = lexer.see();
-                        if (token4.isOf(Token.ARGUMENT_SEPARATION)) {
-                            lexer.next();
-                            actions.add(Instruction.PROCEDURE);
-                        } else if (isEOL(token4, allowEOF)) {
-                            lexer.next();
-                            actions.add(Instruction.PROCEDURE);
-                            break;
-                        } else if (!token4.isOf(Token.ACCESS, Token.NUMBER, Token.STRING, Token.IDENTIFIER, Token.FUNCTION_DECLARATION)) {
-                            illegalToken(token4, allowEOF, Token.ARGUMENT_SEPARATION, Token.ACCESS);
-                        }
-                    } else if (token3.isOf(Token.ARGUMENT_SEPARATION)) {
-                        actions.add(Instruction.INPUT);
-                        values.add(value);
-                    } else {
-                        if (value instanceof IdentifierValue || value instanceof FunctionValue) {
-                            illegalToken(token3, allowEOF, Token.ARGUMENT_SEPARATION, Token.ACCESS);
-                        } else {
-                            illegalToken(token3, allowEOF, Token.ARGUMENT_SEPARATION);
-                        }
+                    if (token4.isOf(Token.ARGUMENT_SEPARATION)) {
+                        lexer.next();
+                        actions.add(Instruction.PROCEDURE);
+                    } else if (!token4.isOf(Token.ACCESS, Token.NUMBER, Token.STRING, Token.IDENTIFIER, Token.FUNCTION_DECLARATION)) {
+                        System.out.println("2");
+                        illegalTokenEOL(token4, allowEOF, Token.ARGUMENT_SEPARATION, Token.ACCESS);
                     }
+                } else if (token3.isOf(Token.ARGUMENT_SEPARATION)) {
+                    actions.add(Instruction.INPUT);
+                    values.add(value);
+                } else {
+                    if (value instanceof IdentifierValue || value instanceof FunctionValue) {
+                        illegalTokenEOL(token3, allowEOF, Token.ARGUMENT_SEPARATION, Token.ACCESS);
+                    }
+                    illegalTokenEOL(token3, allowEOF, Token.ARGUMENT_SEPARATION);
                 }
             }
         }
@@ -188,19 +196,18 @@ public class Parser {
         List<String> arguments = new ArrayList<>();
         while (true) {
             Token token = lexer.next();
-            if (token.isOf(Token.IDENTIFIER)) {
-                arguments.add(token.getValue());
-                Token token1 = lexer.next();
-                if (token1.isOf(Token.LINE_END)) {
-                    break;
-                } else if (!token1.isOf(Token.ARGUMENT_SEPARATION)) {
-                    illegalToken(token1, Token.LINE_END, Token.ARGUMENT_SEPARATION);
-                }
-            } else {
+            if (!token.isOf(Token.IDENTIFIER)) {
                 illegalToken(token, Token.IDENTIFIER);
             }
+            arguments.add(token.getValue());
+            Token token1 = lexer.next();
+            if (token1.isOf(Token.LINE_END)) {
+                break;
+            }
+            if (!token1.isOf(Token.ARGUMENT_SEPARATION)) {
+                illegalToken(token1, Token.LINE_END, Token.ARGUMENT_SEPARATION);
+            }
         }
-
         return arguments;
     }
 
@@ -208,22 +215,24 @@ public class Parser {
         if (token.isOf(Token.FUNCTION_DECLARATION)) {
             Token token1 = lexer.next();
             if (token1.isOf(Token.LINE_END)) {
-                return new FunctionValue(parseFunction(null));
-            } else if (token1.isOf(Token.ACCESS)) {
-                List<String> arguments = parseFunctionArguments();
-                return new FunctionValue(parseFunction(arguments));
-            } else {
-                illegalToken(token1, Token.LINE_END, Token.ACCESS);
+                return new FunctionValue(parseFunction(null, false));
             }
-        } else if (token.isOf(Token.NUMBER)) {
-            return new NumberValue(Integer.parseInt(token.getValue()));
-        } else if (token.isOf(Token.STRING)) {
-            return new StringValue(token.getValue());
-        } else if (token.isOf(Token.IDENTIFIER)) {
-            return new IdentifierValue(token.getValue());
-        } else {
-            illegalToken(token, Token.FUNCTION_DECLARATION, Token.NUMBER, Token.STRING, Token.IDENTIFIER);
+            if (token1.isOf(Token.ACCESS)) {
+                List<String> arguments = parseFunctionArguments();
+                return new FunctionValue(parseFunction(arguments, false));
+            }
+            illegalToken(token1, Token.LINE_END, Token.ACCESS);
         }
+        if (token.isOf(Token.NUMBER)) {
+            return new NumberValue(Integer.parseInt(token.getValue()));
+        }
+        if (token.isOf(Token.STRING)) {
+            return new StringValue(token.getValue());
+        }
+        if (token.isOf(Token.IDENTIFIER)) {
+            return new IdentifierValue(token.getValue());
+        }
+        illegalToken(token, Token.IDENTIFIER, Token.NUMBER, Token.STRING, Token.FUNCTION_DECLARATION);
         return null;
     }
 }

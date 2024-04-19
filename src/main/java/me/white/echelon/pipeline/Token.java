@@ -2,40 +2,40 @@ package me.white.echelon.pipeline;
 
 public class Token {
     enum Type {
-        FUNCTION_DECLARATION,
-        FUNCTION_RETURN,
-        IDENTIFIER,
-        ARGUMENT_SEPARATION,
-        ACCESS,
         LINE_END,
+        FILE_END,
+        IDENTIFIER,
         NUMBER,
         STRING,
-        FILE_END;
+        FUNCTION_DECLARATION,
+        FUNCTION_RETURN,
+        ARGUMENT_SEPARATION,
+        ACCESS;
 
         @Override
         public String toString() {
             return switch (this) {
-                case FUNCTION_DECLARATION -> "<FNC>";
-                case FUNCTION_RETURN -> "<RET>";
-                case IDENTIFIER -> "<IDT>";
-                case ARGUMENT_SEPARATION -> "<SEP>";
-                case ACCESS -> "<ACS>";
                 case LINE_END -> "<END>";
+                case FILE_END -> "<EOF>";
+                case IDENTIFIER -> "<IDT>";
                 case NUMBER -> "<NUM>";
                 case STRING -> "<STR>";
-                case FILE_END -> "<EOF>";
+                case FUNCTION_DECLARATION -> "<FNC>";
+                case FUNCTION_RETURN -> "<RET>";
+                case ARGUMENT_SEPARATION -> "<SEP>";
+                case ACCESS -> "<ACS>";
             };
         }
     }
-    public static Type FUNCTION_DECLARATION = Type.FUNCTION_DECLARATION;
-    public static Type FUNCTION_RETURN = Type.FUNCTION_RETURN;
-    public static Type IDENTIFIER = Type.IDENTIFIER;
-    public static Type ARGUMENT_SEPARATION = Type.ARGUMENT_SEPARATION;
-    public static Type ACCESS = Type.ACCESS;
     public static Type LINE_END = Type.LINE_END;
+    public static Type FILE_END = Type.FILE_END;
+    public static Type IDENTIFIER = Type.IDENTIFIER;
     public static Type NUMBER = Type.NUMBER;
     public static Type STRING = Type.STRING;
-    public static Type FILE_END = Type.FILE_END;
+    public static Type FUNCTION_DECLARATION = Type.FUNCTION_DECLARATION;
+    public static Type FUNCTION_RETURN = Type.FUNCTION_RETURN;
+    public static Type ARGUMENT_SEPARATION = Type.ARGUMENT_SEPARATION;
+    public static Type ACCESS = Type.ACCESS;
 
     private Type type;
     private String value;
@@ -71,15 +71,19 @@ public class Token {
     @Override
     public String toString() {
         return switch (type) {
-            case FUNCTION_DECLARATION -> "<FNC>";
-            case FUNCTION_RETURN -> "<RET>";
-            case IDENTIFIER -> "<IDT:" + value + ">";
-            case ARGUMENT_SEPARATION -> "<SEP>";
-            case ACCESS -> "<ACS>";
             case LINE_END -> "<END>";
+            case FILE_END -> "<EOF>";
+            case IDENTIFIER -> "<IDT:" + value + ">";
             case NUMBER -> "<NUM:" + value + ">";
             case STRING -> "<STR:" + value + ">";
-            case FILE_END -> "<EOF>";
+            case FUNCTION_DECLARATION -> "<FNC>";
+            case FUNCTION_RETURN -> "<RET>";
+            case ARGUMENT_SEPARATION -> "<SEP>";
+            case ACCESS -> "<ACS>";
         };
+    }
+
+    public static void illegal(Token token) {
+        throw new IllegalStateException("Illegal token at position " + token.getPosition() + ": '" + token + "'.");
     }
 }
