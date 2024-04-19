@@ -59,7 +59,7 @@ public class Lexer {
     private String readIdentifier() {
         position -= 1;
         int start = position;
-        skipUntil(ch -> ch == ',' || ch == ':' || ch == '\n' || ch == '\\');
+        skipUntil(ch -> ch == ' ' || ch == ',' || ch == ':' || ch == '\n' || ch == '\\');
         int length = position - start;
         position = start;
         return readLength(length);

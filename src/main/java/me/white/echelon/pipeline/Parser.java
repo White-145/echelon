@@ -88,7 +88,7 @@ public class Parser {
 
     private Func parseFunction(List<String> arguments, boolean allowEOF) {
         List<Instruction> instructions = new ArrayList<>();
-        Value<?> returnValue = null;
+        Value<?> returnValue = new NumberValue(0);
         while (true) {
             Token token = lexer.next();
             if (token.isOf(Token.FUNCTION_RETURN)) {
@@ -97,12 +97,16 @@ public class Parser {
                     lexer.next();
                     Value<?> value = parseValue(token1);
                     returnValue = value;
-                    if (value instanceof IdentifierValue) {
+                    if (value instanceof IdentifierValue || value instanceof FunctionValue) {
                         Token token2 = lexer.see();
+                        if (value instanceof FunctionValue && token2.isOf(Token.LINE_END)) {
+                            lexer.next();
+                            token2 = lexer.see();
+                        }
                         if (token2.isOf(Token.ACCESS)) {
                             lexer.next();
-                            returnValue = new InstructionValue(parseInstruction(token1, true));
-                        } else if (!token2.isOf(Token.LINE_END, Token.FILE_END, Token.ACCESS)) {
+                            returnValue = new InstructionValue(parseInstruction(value, true));
+                        } else if (!token2.isOf(Token.LINE_END, Token.FILE_END)) {
                             illegalToken(token2, Token.ACCESS, Token.LINE_END, Token.FILE_END);
                         }
                     }
@@ -110,25 +114,32 @@ public class Parser {
                     illegalTokenEOL(token1, allowEOF, Token.IDENTIFIER, Token.NUMBER, Token.STRING, Token.FUNCTION_DECLARATION);
                 }
                 break;
-            } else if (token.isOf(Token.IDENTIFIER)) {
+            } else if (token.isOf(Token.IDENTIFIER, Token.FUNCTION_DECLARATION)) {
+                Value<?> value = parseValue(token);
                 Token token1 = lexer.next();
+                if (value instanceof FunctionValue) {
+                    Token token2 = lexer.see();
+                    if (token2.isOf(Token.ARGUMENT_SEPARATION, Token.ACCESS)) {
+                        token1 = lexer.next();
+                    }
+                }
                 if (!token1.isOf(Token.ACCESS)) {
                     illegalToken(token1, Token.ACCESS);
                 }
-                Instruction instruction = parseInstruction(token, false);
+                Instruction instruction = parseInstruction(value, false);
                 instructions.add(instruction);
-            } else {
-                illegalToken(token, Token.LINE_END, Token.IDENTIFIER, Token.FUNCTION_RETURN);
+            } else if (!token.isOf(Token.LINE_END)) {
+                illegalToken(token, Token.LINE_END, Token.IDENTIFIER, Token.FUNCTION_DECLARATION, Token.FUNCTION_RETURN);
             }
         }
 
         return new Func(arguments, instructions, returnValue);
     }
 
-    private Instruction parseInstruction(Token token, boolean allowEOF) {
+    private Instruction parseInstruction(Value<?> firstValue, boolean allowEOF) {
         List<Value<?>> values = new ArrayList<>();
         List<Instruction.Action> actions = new ArrayList<>();
-        values.add(parseValue(token));
+        values.add(firstValue);
         actions.add(Instruction.ACCESS);
         Token token1 = lexer.see();
         if (token1.isOf(Token.ARGUMENT_SEPARATION)) {
@@ -175,7 +186,6 @@ public class Parser {
                         lexer.next();
                         actions.add(Instruction.PROCEDURE);
                     } else if (!token4.isOf(Token.ACCESS, Token.NUMBER, Token.STRING, Token.IDENTIFIER, Token.FUNCTION_DECLARATION)) {
-                        System.out.println("2");
                         illegalTokenEOL(token4, allowEOF, Token.ARGUMENT_SEPARATION, Token.ACCESS);
                     }
                 } else if (token3.isOf(Token.ARGUMENT_SEPARATION)) {

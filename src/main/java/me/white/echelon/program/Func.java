@@ -25,6 +25,7 @@ public class Func {
     }
 
     public Value<?> execute(List<Container> arguments, Map<String, Func> functions) {
+        assert arguments.size() == argumentCount;
         Map<String, Value<?>> storage = new HashMap<>();
         for (int i = 0; i < argumentCount; ++i) {
             storage.put(this.arguments.get(i), arguments.get(i).getStoredValue());
@@ -32,19 +33,20 @@ public class Func {
         for (Instruction instruction : instructions) {
             instruction.execute(storage, functions);
         }
-        for (Container argument : arguments) {
-            String name = argument.getName();
-            if (name != null) {
+        Value<?> returnedValue = returnValue;
+        if (returnValue instanceof InstructionValue instructionValue) {
+            returnedValue = instructionValue.getValue().execute(storage, functions);
+        } else if (returnValue instanceof IdentifierValue identifierValue) {
+            returnedValue = storage.get(identifierValue.getValue());
+        }
+        for (int i = 0; i < argumentCount; ++i) {
+            String name = this.arguments.get(i);
+            Container argument = arguments.get(i);
+            if (argument.getName() != null) {
                 argument.setStoredValue(storage.get(name));
             }
         }
-        if (returnValue instanceof InstructionValue instructionValue) {
-            return instructionValue.getValue().execute(storage, functions);
-        }
-        if (returnValue instanceof IdentifierValue identifierValue) {
-            return storage.get(identifierValue.getValue());
-        }
-        return returnValue;
+        return returnedValue;
     }
 
     public int getArgumentCount() {

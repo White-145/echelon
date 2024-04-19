@@ -106,7 +106,8 @@ public class Instruction {
                 argumentStack.add(new ArrayList<>());
                 accessStack.add(func);
             } else if (action == Action.STACK_ACCESS) {
-                Value<?> value = argumentStack.peek().get(argumentStack.peek().size() - 1);
+                List<Value<?>> arguments = argumentStack.peek();
+                Value<?> value = arguments.remove(arguments.size() - 1);
                 if (!(value instanceof FunctionValue)) {
                     throw new IllegalStateException("Attempt to call non-function value.");
                 }
@@ -118,10 +119,11 @@ public class Instruction {
         if (!accessStack.isEmpty()) {
             throw new IllegalStateException("Insufficient argument count in instruction.");
         }
-        List<Value<?>> argument = argumentStack.pop();
-        if (argument.size() != 1) {
+        List<Value<?>> arguments = argumentStack.pop();
+        if (arguments.size() != 1) {
+            System.out.println(arguments);
             throw new IllegalStateException("Excess argument count in instruction.");
         }
-        return argument.get(0);
+        return arguments.get(0);
     }
 }

@@ -70,6 +70,7 @@ public class Main {
                 program.execute();
             } catch (IllegalStateException e) {
                 System.out.println(e.getMessage());
+                e.printStackTrace();
             }
         }
     }

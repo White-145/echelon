@@ -82,8 +82,4 @@ public class Token {
             case ACCESS -> "<ACS>";
         };
     }
-
-    public static void illegal(Token token) {
-        throw new IllegalStateException("Illegal token at position " + token.getPosition() + ": '" + token + "'.");
-    }
 }
