@@ -49,6 +49,9 @@ public class Instruction {
             }
             Function function = ((Value.FunctionValue)resolved).getValue();
             int parameterCount = function.getParameterCount();
+            if (values.size() < parameterCount) {
+                throw new IllegalStateException("not enough parameters to run function");
+            }
             List<Storage.ReferenceValue> subList = values.subList(0, parameterCount);
             List<Storage.ReferenceValue> parameters = new ArrayList<>(subList);
             subList.clear();
