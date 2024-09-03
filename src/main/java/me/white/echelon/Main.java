@@ -13,7 +13,7 @@ public class Main {
     static {
         builtinFunctions.put("output", new Function.Builtin(1, (context, parameters) -> {
             Value<?> value = parameters.get(0).getValue();
-            System.out.println(value instanceof Value.IdentifierValue ? "nil" : value);
+            System.out.println(value);
             return null;
         }));
         builtinFunctions.put("set", new Function.Builtin(2, (context, parameters) -> {
@@ -90,6 +90,10 @@ public class Main {
         String code = """
                 !invert:x\\~if:x,0,1
                 !extract_bundle:x\\~bundle:x
+                !nested\\~!
+                ~!
+                ~!
+                ~"end"
                 
                 !
                  set:x,69
@@ -97,6 +101,7 @@ public class Main {
                  output:invert:x
                  output:invert:invert:x
                  output:extract_bundle:.hello
+                 output:nested::::
                 ~
                 """;
         Environment environment = Environment.parse(code);

@@ -3,113 +3,62 @@ package me.white.echelon;
 import me.white.echelon.environment.Context;
 import me.white.echelon.environment.Storage;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 public class Instruction {
     private final List<Action> actions;
 
     public Instruction(List<Action> actions) {
+        Collections.reverse(actions);
         this.actions = actions;
     }
 
     public Value<?> execute(Context context) {
-        Stack<StackFrame> frames = new Stack<>();
-        frames.add(new StackFrame());
+        List<Storage.ReferenceValue> values = new ArrayList<>();
+        int nested = 0;
+        Value<?> result = null;
         for (Action action : actions) {
-            if (action.type == ActionType.ACCESS) {
-                Storage.ReferenceValue functionReference = new Storage.ReferenceValue(null, action.value);
-                if (action.value == null) {
-                    functionReference = frames.peek().pop();
-                } else if (action.value instanceof Value.IdentifierValue) {
-                    functionReference = ((Value.IdentifierValue)action.value).resolve(context);
+            if (result != null) {
+                values.add(new Storage.ReferenceValue(null, result));
+                result = null;
+            }
+            Value<?> value = action.getValue();
+            if (action.getType() == ActionType.INPUT) {
+                values.add(value.resolve(context));
+                continue;
+            }
+            if (value == null) {
+                nested += 1;
+                continue;
+            }
+            while (nested > 0) {
+                Value<?> resolved = value.resolve(context).getValue();
+                if (!(resolved instanceof Value.FunctionValue)) {
+                    throw new IllegalStateException("calling non function");
                 }
-                if (!(functionReference.getValue() instanceof Value.FunctionValue)) {
-                    throw new IllegalStateException("calling not a function");
-                }
-                Function function = ((Value.FunctionValue)functionReference.getValue()).getValue();
-                if (function.getParameterCount() == 0) {
-                    throw new IllegalStateException("overfeeding function");
-                }
-                frames.add(new StackFrame(function));
-            } else if (action.type == ActionType.PROCEDURE) {
-                Storage.ReferenceValue functionReference = new Storage.ReferenceValue(null, action.value);
-                if (action.value == null) {
-                    functionReference = frames.peek().pop();
-                } else if (action.value instanceof Value.IdentifierValue) {
-                    functionReference = ((Value.IdentifierValue)action.value).resolve(context);
-                }
-                if (!(functionReference.getValue() instanceof Value.FunctionValue)) {
-                    throw new IllegalStateException("calling not a function");
-                }
-                Function function = ((Value.FunctionValue)functionReference.getValue()).getValue();
+                Function function = ((Value.FunctionValue)resolved).getValue();
                 if (function.getParameterCount() != 0) {
-                    throw new IllegalStateException("underfeeding function");
+                    throw new IllegalStateException("mouh calling function with no parameters");
                 }
-                Value<?> value = function.run(context);
-                if (value != null) {
-                    frames.peek().add(new Storage.ReferenceValue(null, value));
-                }
-            } else if (action.value != null) {
-                if (action.value instanceof Value.IdentifierValue) {
-                    frames.peek().add(((Value.IdentifierValue)action.value).resolve(context));
-                } else {
-                    frames.peek().add(new Storage.ReferenceValue(null, action.value));
-                }
+                value = function.run(context);
+                nested -= 1;
             }
-
-            while (frames.size() > 1 && frames.peek().size() == frames.peek().getFunction().getParameterCount()) {
-                StackFrame frame = frames.pop();
-                Value<?> value = frame.getFunction().run(context, frame.getValues());
-                if (value != null) {
-                    frames.peek().add(new Storage.ReferenceValue(null, value));
-                }
+            Value<?> resolved = value.resolve(context).getValue();
+            if (!(resolved instanceof Value.FunctionValue)) {
+                throw new IllegalStateException("calling non function");
             }
+            Function function = ((Value.FunctionValue)resolved).getValue();
+            int parameterCount = function.getParameterCount();
+            List<Storage.ReferenceValue> subList = values.subList(0, parameterCount);
+            List<Storage.ReferenceValue> parameters = new ArrayList<>(subList);
+            subList.clear();
+            Collections.reverse(parameters);
+            result = function.run(context, parameters);
         }
-
-        if (frames.size() > 1) {
-            throw new IllegalStateException("too litle values");
+        if (!values.isEmpty()) {
+            throw new IllegalStateException("too much values inputed");
         }
-
-        if (frames.peek().size() != 1) {
-            return null;
-        }
-
-        return frames.peek().pop().getValue();
-    }
-
-    private static class StackFrame {
-        private final Function function;
-        private final LinkedList<Storage.ReferenceValue> values = new LinkedList<>();
-
-        public StackFrame(Function function) {
-            this.function = function;
-        }
-
-        public StackFrame() {
-            this(null);
-        }
-
-        public Function getFunction() {
-            return function;
-        }
-
-        public List<Storage.ReferenceValue> getValues() {
-            return values;
-        }
-
-        public void add(Storage.ReferenceValue value) {
-            values.add(value);
-        }
-
-        public Storage.ReferenceValue pop() {
-            return values.pop();
-        }
-
-        public int size() {
-            return values.size();
-        }
+        return result;
     }
 
     public static class Action {
@@ -136,7 +85,6 @@ public class Instruction {
 
     public enum ActionType {
         INPUT,
-        ACCESS,
-        PROCEDURE
+        ACCESS
     }
 }

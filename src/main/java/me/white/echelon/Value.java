@@ -15,6 +15,10 @@ public abstract class Value<T> {
         return value;
     }
 
+    public Storage.ReferenceValue resolve(Context context) {
+        return new Storage.ReferenceValue(null, this);
+    }
+
     @Override
     public String toString() {
         return value.toString();

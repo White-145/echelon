@@ -59,14 +59,13 @@ public class Parser {
         List<Instruction.Action> actions = new ArrayList<>();
         while (lexer.peek().isOf(Token.ACCESS)) {
             lexer.skip();
-            actions.add(new Instruction.Action(Instruction.ActionType.PROCEDURE, value));
+            actions.add(new Instruction.Action(Instruction.ActionType.ACCESS, value));
             value = null;
         }
+        actions.add(new Instruction.Action(Instruction.ActionType.ACCESS, value));
         if (lexer.peek().isOf(Token.EOL, Token.EOF)) {
-            actions.add(new Instruction.Action(Instruction.ActionType.PROCEDURE, value));
             return new Instruction(actions);
         }
-        actions.add(new Instruction.Action(Instruction.ActionType.ACCESS, value));
         if (!isValue(lexer.peek())) {
             expect(Token.NUMBER, Token.STRING, Token.FUNCTION, Token.IDENTIFIER, Token.EOL);
         }
@@ -76,13 +75,8 @@ public class Parser {
             Token token = lexer.peek();
             if (token.isOf(Token.ACCESS)) {
                 lexer.skip();
-                if (isValue(lexer.peek())) {
-                    actions.add(new Instruction.Action(Instruction.ActionType.ACCESS, value));
-                    value = parseValue();
-                } else {
-                    actions.add(new Instruction.Action(Instruction.ActionType.PROCEDURE, value));
-                    value = null;
-                }
+                actions.add(new Instruction.Action(Instruction.ActionType.ACCESS, value));
+                value = isValue(lexer.peek()) ? parseValue() : null;
             } else if (token.isOf(Token.SEPARATOR)) {
                 lexer.skip();
                 if (value != null) {

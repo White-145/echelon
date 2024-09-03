@@ -15,10 +15,7 @@ public abstract class Evaluation {
 
         @Override
         public Value<?> evaluate(Context context) {
-            if (value instanceof Value.IdentifierValue) {
-                return ((Value.IdentifierValue)value).resolve(context).getValue();
-            }
-            return value;
+            return value.resolve(context).getValue();
         }
     }
 
