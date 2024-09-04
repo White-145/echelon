@@ -30,7 +30,7 @@ Strings act as usual, arbitrary text surrounded by `"`
 
 Numbers represent double precision float values
 
-Functions can be run using `:`
+Functions can be run using `:`, and are defined the same way as a regular functions, but without a name
 
 References are sort of variables, that can have no value and be passed in functions.
 
@@ -98,6 +98,20 @@ With provided parameters you can get their stored values, modify them, and get t
 
 1. OOP like members: `class:method:a,b`
 2. Syntax-abusing expressions: `math:(a+b)/10` (keep in mind that `(a+b)/10` is a valid identifier)
+
+Note that when passing reference as an argument, it does not change its name to that of the argument. For example:
+
+```
+!output_math:expression
+ output:math:expression
+~
+
+!
+ output_math:(4+12)/2
+~
+```
+
+here, `math` function will recieve a reference with name `(4+12)/2`, not `expression`.
 
 Context can be used to get variables from calling function, get environment, its functions and global variables, and call other functions keeping the context of the calling functions, which can be used for conditions and loops.
 
